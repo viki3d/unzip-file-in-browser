@@ -1,0 +1,170 @@
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Unzip .zip file into browser with Javascript</title>
+	<script src="js/base64.js"></script>
+	<script src="js/js-inflate.js"></script>
+	<script src="js/v-ajax.js"></script>
+	<script src="js/v-unzip.js"></script>
+	
+	<style>
+		#fileContent {
+			margin-top : 20px;
+			padding : 20px;
+			font-size : 20px;
+			
+			background-color : lightgray;
+		}
+		table {
+			background-color : orange;
+		}
+		table td {
+			padding : 4px;
+		}
+	</style>
+</head>
+<body>
+
+	<h1>DEMO: Unzip .zip file into browser with Javascript</h1>
+	<h5>Created by Victor Kirov</h5>
+
+	The .zip file on server: <a href="javascript.zip">javascript.zip</a> <br/><br/>
+	<table>
+		<tr>
+			<td>javascript.zip - zipped files:</td>
+		</tr>
+		<tr>
+			<td>
+				<ul>
+					<li>javascript.txt</li>
+					<li>beginnings_at_netscape.txt</li>
+					<li>adoption_by_microsoft.txt</li>
+					<li>standartization.txt</li>
+				</ul>
+			</td>
+		</tr>
+	</table>
+	<br/>
+	
+	
+	Filename to unzip
+	<select id="fileToUnzip">
+		<option value="javascript.txt">javascript.txt</option>
+		<option value="beginnings_at_netscape.txt">beginnings_at_netscape.txt</option>
+		<option value="adoption_by_microsoft.txt">adoption_by_microsoft.txt</option>
+		<option value="standartization.txt">standartization.txt</option>
+		<option value="no_such_file.txt">no_such_file.txt</option>		
+	</select>
+	
+	<input type="button" onclick="unzipSelectedFile()" value="Unzip from zip & show" title="Pull the .zip file from server and unzip selected file from it in browser" /> <br/>
+	
+	<div id="fileContent">
+	
+	</div>
+
+
+	<script type="text/javascript">
+		function ajaxHandler(responseText) {
+
+			//  Get zip file and decode it from Base64 as String
+			var zipAsString = decodeBase64(responseText);
+			
+			//  Convert the zip file data to binary array
+			var zipAsBinary = [];
+			for (var i=0;i<zipAsString.length;i++) {
+				zipAsBinary.push( zipAsString.charCodeAt(i) );
+			}
+
+			//  Clear previous file content
+			document.getElementById('fileContent').innerHTML = "";
+
+			
+			//  Unzip given filename from the zip binary 
+			var unzippedFileData;
+			var filenameToUnzip = document.getElementById('fileToUnzip').value;
+			try {
+				unzippedFileData = VZip.unzip(zipAsBinary, filenameToUnzip);
+				document.getElementById('fileContent').innerHTML = "<pre>"+unzippedFileData+"</pre>";
+			}
+			catch (e) {
+				alert(e);
+			}
+		}
+		
+		function unzipSelectedFile() {
+			VAjax.makeRequest("getzip.php", ajaxHandler);
+		}
+		
+	</script>
+
+
+	<hr/>
+	<h1>DOCUMENTATION: How is this working?</h1>
+	
+	<h5>1. The main flow:</h5>
+	<img src="img/1.png"/> <br/>
+	Since Ajax is supposed to work with TEXT and not with BINARY data, we are transferring the binary file as Base64 encoded string, which is later 
+	converted back to binary array in browser (JS).
+	
+	
+	<h5>2. The server file, which is delivering the .zip file (from server to browser):</h5>
+	<pre>
+	<b>getzip.php</b>
+	&lt;?php
+
+		$zipfile = "javascript.zip";
+
+		$fh = fopen($zipfile, "r");
+		if ($fh===FALSE) {
+			die("Failed to open stream to URL");
+		}
+
+		$fileContents = '';
+		while (!feof($fh)) {
+			$fileContents .= fread($fh, 8192);
+		}
+		fclose($fh);
+
+		echo base64_encode($fileContents);
+
+	?>
+	</pre>
+	
+	<h5>3. The Javascript code you need to unzip files into browser:</h5>
+	<pre>
+		//  The ajax callback function, where the .zip file is available when is downloaded from server:
+		function ajaxHandler(responseText) {
+
+			//  Get zip file and decode it from Base64 as String
+			var zipAsString = decodeBase64(responseText);
+			
+			//  Convert the zip file data to binary array
+			var zipAsBinary = [];
+			for (var i=0; i&lt;zipAsString.length;i++) {
+				zipAsBinary.push( zipAsString.charCodeAt(i) );
+			}
+
+			//  Unzip given filename from the zip binary 
+			var unzippedFileData;
+			var filenameToUnzip = "filename_from_zip_archive_to_be_unzipped";
+			try {
+				//  Get the actual file content (unzipped):
+				<b>unzippedFileData = VZip.unzip(zipAsBinary, filenameToUnzip);</b>
+				
+				//  Do what you want with the unzipped file contents:
+				<b>alert(unzippedFileData);</b>
+			}
+			catch (e) {
+				//  Exception: Invaild zip file; Unsupported encoding algorithm; File for unzipping not found:
+				alert(e);
+			}
+		}
+		
+		//  Call this function to download the .zip file from server:
+		function unzipSelectedFile() {
+			VAjax.makeRequest("getzip.php", ajaxHandler);
+		}
+	</pre>
+	
+</body>
+</html>
